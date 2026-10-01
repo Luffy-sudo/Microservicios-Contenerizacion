@@ -1,0 +1,130 @@
+services:
+  # ==========================================
+  # SERVICIO 1: BASE DE DATOS FESTIVOS (MONGODB - NoSQL)
+  # ==========================================
+  bd-festivos:
+    image: mongo:7-jammy
+    container_name: bd_festivos_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: festivos_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - datos_festivos_mongo:/data/db
+      - ./BD/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # SERVICIO 2: API FESTIVOS (COLOMBIA)
+  # ==========================================
+  api-festivos:
+    build:
+      context: ./api-festivos
+    container_name: api_festivos
+    restart: always
+    environment:
+      PORT: 3001
+      DB_HOST: bd-festivos
+      DB_PORT: 27017
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_NAME: festivos_db
+      MONGO_URI: mongodb://admin:admin123@bd-festivos:27017/festivos_db?authSource=admin
+    ports:
+      - "8081:3001"
+    depends_on:
+      bd-festivos:
+        condition: service_healthy
+
+  # ==========================================
+  # SERVICIO 3: BASE DE DATOS CALENDARIO LABORAL (POSTGRESQL - SQL)
+  # ==========================================
+  bd-calendario:
+    image: postgres:16-alpine
+    container_name: bd_calendario
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: calendario_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - datos_calendario:/var/lib/postgresql/data
+      - ./BD/calendario_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d calendario_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # SERVICIO 4: API CALENDARIO LABORAL
+  # ==========================================
+  api-calendario:
+    build:
+      context: ./api-calendario
+    container_name: api_calendario_laboral
+    restart: always
+    environment:
+      PORT: 3002
+      DB_HOST: bd-calendario
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_NAME: calendario_db
+      API_FESTIVOS_URL: http://api-festivos:3001
+    ports:
+      - "8082:3002"
+    depends_on:
+      bd-calendario:
+        condition: service_healthy
+      api-festivos:
+        condition: service_started
+
+  # ==========================================
+  # SERVICIO 5: GESTOR DE POSTGRESQL (PGADMIN)
+  # ==========================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin_monitoreo
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      - bd-calendario
+
+  # ==========================================
+  # SERVICIO 6: GESTOR DE MONGODB (MONGO EXPRESS)
+  # ==========================================
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    container_name: mongo_express_ui
+    restart: always
+    ports:
+      - "8085:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_MONGODB_SERVER: bd-festivos
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      bd-festivos:
+        condition: service_healthy
+
+volumes:
+  datos_festivos_mongo:
+  datos_calendario:

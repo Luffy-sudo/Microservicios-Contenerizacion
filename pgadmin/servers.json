@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "BD Calendario Laboral (calendario_db)",
+      "Group": "Microservicios ITM",
+      "Host": "bd-calendario",
+      "Port": 5432,
+      "MaintenanceDB": "calendario_db",
+      "Username": "admin",
+      "SSLMode": "prefer"
+    }
+  }
+}

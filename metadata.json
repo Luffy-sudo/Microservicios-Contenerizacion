@@ -1,0 +1,8 @@
+{
+  "name": "API Cambio de Monedas",
+  "description": "Sistema y API de gestión de divisas, tasas de cambio históricas y países con autenticación JWT.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
